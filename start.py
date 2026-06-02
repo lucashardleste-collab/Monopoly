@@ -4,16 +4,31 @@ import os
 
 
 #game variables
-GAME_WIDTH= 1280
-GAME_HEIGHT= 721
-
+GAME_WIDTH= 1300
+GAME_HEIGHT= 660
 PLayer_Y = GAME_HEIGHT/2
 PLayer_X = GAME_WIDTH/2
 PLayer_WIDTH = 49
 PLayer_HEIGHT = 60
-PLayer_SPEED = 15
+PLayer_SPEED = 8
+
+current_frame = 0
+animation_speed = 0.01
+
+
 #images
-background_image = pygame.image.load(os.path.join("images", "fundo.png"))
+frames = [
+    pygame.image.load(os.path.join("images", "1.png")),
+    pygame.image.load(os.path.join("images", "2.png")),
+    pygame.image.load(os.path.join("images", "3.png")),
+    pygame.image.load(os.path.join("images", "4.png"))
+]
+
+frames = [
+    pygame.transform.scale(frame, (1300, 660))
+    for frame in frames
+]
+
 player_image_right = pygame.image.load(os.path.join("images", "golem.png"))
 player_image_right = pygame.transform.scale(player_image_right, (PLayer_WIDTH, PLayer_HEIGHT))
 
@@ -34,8 +49,10 @@ player = Player()
 
 
 def draw():
-    window.fill("purple")
-    window.blit(background_image, (0,0))
+    window.blit(
+        frames[int(current_frame)],
+        (0,0)
+    )
     window.blit(player.image, player)
 
 
@@ -66,6 +83,20 @@ while True:
         player.x += PLayer_SPEED;
     if keys[pygame.K_LEFT] or keys[pygame.K_a]:
         player.x -= PLayer_SPEED;
+    
+    if(player.x < 0):
+        player.x = 0
+    if(player.x > GAME_WIDTH - PLayer_WIDTH):
+        player.x = GAME_WIDTH - PLayer_WIDTH
+    if(player.y < 0):
+        player.y = 0
+    if(player.y > GAME_HEIGHT - PLayer_HEIGHT):
+        player.y = GAME_HEIGHT - PLayer_HEIGHT
+
+    current_frame += animation_speed
+
+    if current_frame >= len(frames):
+        current_frame = 0
 
     draw()
     pygame.display.update()
