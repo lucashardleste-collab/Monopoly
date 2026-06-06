@@ -107,6 +107,86 @@ class Monopoly:
         if jogador.ativo and self.estado.em(EstadoJogo.AGUARDANDO_DADOS):
             self._fase_dados(jogador)
 
+        if jogador.ativo and self.estado.em(EstadoJogo.AGUARDANDO_DADOS):
+            self._fase_construcao(jogador)
+
+    def _fase_construcao(self, jogador: Jogador) -> None:
+        """
+        RF-010/5: Permite construir andares antes de rolar os dados.
+        Só exibe o menu se o jogador tiver ao menos um monopólio.
+        """
+        # Descobre quais cores o jogador tem monopólio
+        from src.core.propriedade import CorGrupo
+
+        cores_com_monopolio = [
+            cor for cor in CorGrupo
+            if transacoes.verificar_monopolio(jogador, cor, self.tabuleiro)
+        ]
+
+        if not cores_com_monopolio:
+            return      # Sem monopólio, sem construção — nem mostra o menu
+
+        # Monta lista de propriedades construíveis
+        props_construiveis = [
+            self.tabuleiro.get_casa(pid)
+            for pid in jogador.propriedades
+            if self.tabuleiro.get_casa(pid).cor in cores_com_monopolio
+            and self.tabuleiro.get_casa(pid).andares < 4
+            and not self.tabuleiro.get_casa(pid).hipotecada
+        ]
+
+        if not props_construiveis:
+            return      # Todas no máximo de andares
+
+        # Menu em loop — jogador pode construir várias vezes
+        while True:
+            print(f"\n  🏗️  Você tem monopólio! Deseja construir andares?")
+            print(f"  [C] Construir   [ENTER] Pular")
+            opcao = input("  › ").strip().upper()
+
+            if opcao != "C":
+                break
+
+            # Lista propriedades disponíveis para construção
+            props_construiveis = [
+                self.tabuleiro.get_casa(pid)
+                for pid in jogador.propriedades
+                if self.tabuleiro.get_casa(pid).cor in cores_com_monopolio
+                and self.tabuleiro.get_casa(pid).andares < 4
+                and not self.tabuleiro.get_casa(pid).hipotecada
+            ]
+
+            if not props_construiveis:
+                print("  ⚠️  Todas as propriedades já estão no máximo.")
+                break
+
+            print(f"\n  Propriedades disponíveis (Saldo: ${jogador.saldo}):")
+            for i, p in enumerate(props_construiveis):
+                proximo_aluguel = (
+                    p.aluguel_por_andar[p.andares]
+                    if p.andares < len(p.aluguel_por_andar)
+                    else "(máx)"
+                )
+
+            print(f"  [{i}] {p.nome} | "
+                f"Andares: {p.andares}/{len(p.aluguel_por_andar)} | "
+                f"Custo: ${p.preco_andar} | "
+                f"Aluguel atual: ${p.calcular_aluguel()} → "
+                f"${proximo_aluguel}")
+
+            try:
+                escolha = int(input("  Escolha o índice › "))
+                if 0 <= escolha < len(props_construiveis):
+                    transacoes.construir_andar(
+                        jogador,
+                        props_construiveis[escolha],
+                        self.tabuleiro
+                    )
+                else:
+                    print("  ⚠️  Índice inválido.")
+            except ValueError:
+                print("  ⚠️  Digite um número válido.")
+
     def _fase_negociacao(self, jogador: Jogador) -> None:
         """RF-016/8: Menu de negociação antes de rolar os dados."""
         if not jogador.propriedades:
@@ -120,35 +200,36 @@ class Monopoly:
             self._fluxo_negociacao(jogador)
 
     def _fase_dados(self, jogador: Jogador) -> None:
-        """Rola os dados, move o jogador e avalia a casa."""
         input(f"\n  {jogador.nome}, pressione ENTER para rolar os dados...")
 
-        self.estado.transicionar(EstadoJogo.MOVENDO)
+        # Rola os dados PRIMEIRO — resultado existe para todos os caminhos
         resultado = self.dados.rolar()
 
-        # Regra dos 3 duplos consecutivos
+        # Regra dos 3 duplos consecutivos — checa APÓS rolar
         if self.dados.tres_duplos_consecutivos():
             print(f"  🚔 3 duplos seguidos! {jogador.nome} vai para a prisão!")
             jogador.entrar_na_prisao()
             self.dados.resetar_duplos()
+            self.estado.transicionar(EstadoJogo.MOVENDO)
+            self.estado.transicionar(EstadoJogo.AVALIANDO_CASA)
             self._finalizar_turno(jogador)
             return
 
-        # Jogador preso — tenta sair
+        # Jogador preso — tenta sair com o resultado já rolado
         if jogador.preso:
+            self.estado.transicionar(EstadoJogo.MOVENDO)
             self._turno_preso(jogador, resultado)
             return
 
         # Movimentação normal
-        pos_antiga = jogador.posicao
+        self.estado.transicionar(EstadoJogo.MOVENDO)
         nova_pos, passou_inicio = jogador.mover(resultado.total, self.tabuleiro.total)
 
         if passou_inicio:
             transacoes.processar_inicio(jogador)
 
         casa = self.tabuleiro.get_casa(nova_pos)
-        print(f"\n  📍 {jogador.nome} avançou {resultado.total} casas "
-              f"→ {casa.nome}")
+        print(f"\n  📍 {jogador.nome} avançou {resultado.total} casas → {casa.nome}")
 
         self.estado.transicionar(EstadoJogo.AVALIANDO_CASA)
         self._avaliar_casa(jogador, casa)
@@ -156,13 +237,12 @@ class Monopoly:
         # Duplo = joga de novo (se não foi preso)
         if resultado.eh_duplo and not jogador.preso and jogador.ativo:
             print(f"\n  🎯 Duplo! {jogador.nome} joga novamente!")
+            self.estado.transicionar(EstadoJogo.AGUARDANDO_DADOS)
             self._fase_dados(jogador)
             return
 
         self._finalizar_turno(jogador)
-
     def _turno_preso(self, jogador: Jogador, resultado) -> None:
-        """Lógica completa do turno de um jogador preso."""
         print(f"\n  🔒 {jogador.nome} está preso (tentativa {jogador.turnos_preso + 1}/3).")
 
         # Opção de usar cartão
@@ -173,6 +253,9 @@ class Monopoly:
                 jogador.preso = False
                 jogador.turnos_preso = 0
                 print(f"  🎫 {jogador.nome} usou o cartão e saiu da prisão!")
+                # Reseta estado e joga normalmente
+                self.estado.transicionar(EstadoJogo.AVALIANDO_CASA)
+                self.estado.transicionar(EstadoJogo.AGUARDANDO_DADOS)
                 self._fase_dados(jogador)
                 return
 
@@ -183,6 +266,7 @@ class Monopoly:
                 # 3ª tentativa — paga multa
                 saldo_ok = transacoes.pagar_multa_prisao(jogador)
                 if not saldo_ok:
+                    self.estado.transicionar(EstadoJogo.AVALIANDO_CASA)
                     self._fluxo_crise(jogador, credor=None)
                     return
             print(f"  ✅ {jogador.nome} saiu da prisão!")
@@ -190,10 +274,12 @@ class Monopoly:
             if passou_inicio:
                 transacoes.processar_inicio(jogador)
             casa = self.tabuleiro.get_casa(nova_pos)
+            print(f"\n  📍 {jogador.nome} avançou {resultado.total} casas → {casa.nome}")
             self.estado.transicionar(EstadoJogo.AVALIANDO_CASA)
             self._avaliar_casa(jogador, casa)
         else:
             print(f"  ❌ {jogador.nome} não tirou duplo. Continua preso.")
+            self.estado.transicionar(EstadoJogo.AVALIANDO_CASA)  # ← sem MOVENDO antes
 
         self._finalizar_turno(jogador)
 

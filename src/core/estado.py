@@ -69,23 +69,28 @@ class MaquinaDeEstados:
             EstadoJogo.SORTE_AZAR,
             EstadoJogo.EFEITO_ESPECIAL,
             EstadoJogo.FIM_DE_TURNO,   # Casa sem efeito (ex: Férias de passagem)
+            EstadoJogo.AGUARDANDO_DADOS,
         ],
         EstadoJogo.COMPRA: [
             EstadoJogo.FIM_DE_TURNO,
             EstadoJogo.CRISE_FINANCEIRA,
+            EstadoJogo.AGUARDANDO_DADOS,   # ← duplo após compra
         ],
         EstadoJogo.COBRANDO_ALUGUEL: [
             EstadoJogo.FIM_DE_TURNO,
             EstadoJogo.CRISE_FINANCEIRA,
+            EstadoJogo.AGUARDANDO_DADOS,   # ← duplo após aluguel
         ],
         EstadoJogo.SORTE_AZAR: [
             EstadoJogo.FIM_DE_TURNO,
             EstadoJogo.CRISE_FINANCEIRA,
-            EstadoJogo.EFEITO_ESPECIAL, # Carta pode mandar para prisão, ex.
+            EstadoJogo.EFEITO_ESPECIAL,
+            EstadoJogo.AGUARDANDO_DADOS,   # ← duplo após carta
         ],
         EstadoJogo.EFEITO_ESPECIAL: [
             EstadoJogo.FIM_DE_TURNO,
             EstadoJogo.CRISE_FINANCEIRA,
+            EstadoJogo.AGUARDANDO_DADOS,   # ← duplo após efeito
         ],
         EstadoJogo.CRISE_FINANCEIRA: [
             EstadoJogo.HIPOTECANDO,
