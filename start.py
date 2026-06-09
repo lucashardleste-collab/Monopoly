@@ -4,8 +4,8 @@ import os
 
 
 #game variables
-GAME_WIDTH= 1300
-GAME_HEIGHT= 660
+GAME_WIDTH= 1920
+GAME_HEIGHT= 1040
 PLayer_Y = GAME_HEIGHT/2
 PLayer_X = GAME_WIDTH/2
 PLayer_WIDTH = 49
@@ -18,14 +18,12 @@ animation_speed = 0.01
 
 #images
 frames = [
-    pygame.image.load(os.path.join("images", "1.png")),
-    pygame.image.load(os.path.join("images", "2.png")),
-    pygame.image.load(os.path.join("images", "3.png")),
-    pygame.image.load(os.path.join("images", "4.png"))
+    pygame.image.load(os.path.join("images", "tabuleiro.png")),
+    
 ]
 
 frames = [
-    pygame.transform.scale(frame, (1300, 660))
+    pygame.transform.scale(frame, (1920, 1040))
     for frame in frames
 ]
 
