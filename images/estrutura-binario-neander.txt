@@ -1,0 +1,25 @@
+PROG1.MEM	PROG2.MEM	PROG3.MEM
+
+LDA 80		LDA 80		LDA 80
+ADD 81		AND 81		NOT
+STA 82		STA 82		STA 81
+HLT		LDA 80		HLT
+		OR  81
+		STA 83
+		HLT
+
+03 4E 44 52	03 4E 44 52	03 4E 44 52
+20 00 80 00	20 00 80 00	20 00 80 00
+30 00 81 00	50 00 81 00	60 00 10 00
+10 00 82 00	10 00 82 00	81 00 F0 00
+F0		20 00 80 00
+		40 00 81 00
+		10 00 83 00
+		F0
+		
+Header (4 bytes): 03 4E 44 52
+Para cada opcode, gravar mais um byte com 00
+Ex: Instrução: LDA 80 (20 80)
+Arquivo MEM: 20 00 80 00
+Tamanho fixo de arquivo MEM: 516 bytes (4 do 
+header e 512 das instrucoes/dados)
