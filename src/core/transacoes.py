@@ -304,4 +304,4 @@ def pagar_multa_prisao(jogador: Jogador) -> bool:
     Jogador paga multa para sair da prisão na 3ª tentativa.
     Retorna False se entrar em crise após o pagamento.
     """
-    return jogador.debitar(MULTA_PRISAO, motivo="Multa para sair da prisão")
+    return jogador.debitar(MULTA_PRISAO, motivo="Multa para sair da prisão")  
