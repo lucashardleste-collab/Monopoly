@@ -3,7 +3,6 @@ from src.core.game import Monopoly
 
 
 def main():
-    pygame.init()
     print("═" * 55)
     print("  Bem-vindo ao Banco Imobiliário!")
     print("═" * 55)
