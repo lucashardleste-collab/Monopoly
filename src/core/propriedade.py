@@ -17,6 +17,7 @@ class TipoCasa(Enum):
     IR_PARA_PRISAO = "ir_para_prisao"
     SORTE = "sorte"
     AZAR = "azar"
+    NADA = "nada"
     IMPOSTO = "imposto"
 
 
@@ -25,15 +26,11 @@ class CorGrupo(Enum):
     Grupos de cor do tabuleiro — base para verificação de monopólio (RF-009/5).
     """
     ROXO = "roxo"
-    CIANO = "ciano"
+    AZUL = "azul"
     ROSA = "rosa"
     LARANJA = "laranja"
     VERMELHO = "vermelho"
-    AMARELO = "amarelo"
-    VERDE = "verde"
-    AZUL = "azul"
-    ESTACAO = "estacao"        # Estações de trem
-    SERVICO = "servico"        # Companhias (luz, água)
+    AMARELO = "amarelo"      
 
 
 @dataclass

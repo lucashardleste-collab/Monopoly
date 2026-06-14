@@ -11,10 +11,19 @@ import pygame
 from sys import exit
 
 from src.core.game import Monopoly
+from src.core.propriedade import TipoCasa
+
+aguardando_popup = False
 
 passos_restantes = 0
 tempo_movimento = 0
 jogador_atual = 0
+ultimo_dado_1 = 1
+ultimo_dado_2 = 1
+
+popup_ativo = False
+popup_titulo = ""
+popup_texto = ""
 
 # Game Variables
 GAME_WIDTH = 1920
@@ -29,10 +38,10 @@ animation_speed = 0.01
 pygame.init()
 
 game = Monopoly([
+    "Guaxinim",
     "Capivara",
-    "Urso",
     "Cristo",
-    "Guaxinim"
+    "Urso"
 ])
 
 print("Total de casas:", game.tabuleiro.total)
@@ -41,6 +50,67 @@ print("Total de casas:", game.tabuleiro.total)
 frames = [
     pygame.image.load(os.path.join("images", "tabuleiro.png")),
 ]
+
+def desenhar_popup():
+
+    if not popup_ativo:
+        return
+
+    pygame.draw.rect(
+        window,
+        (20, 20, 20),
+        (560, 250, 800, 400),
+        border_radius=25
+    )
+
+    pygame.draw.rect(
+        window,
+        (255, 215, 0),
+        (560, 250, 800, 400),
+        width=4,
+        border_radius=25
+    )
+
+    fonte_titulo = pygame.font.SysFont(
+        "Arial",
+        40,
+        bold=True
+    )
+
+    fonte_texto = pygame.font.SysFont(
+        "Arial",
+        28
+    )
+
+    titulo = fonte_titulo.render(
+        popup_titulo,
+        True,
+        (255, 215, 0)
+    )
+
+    texto = fonte_texto.render(
+        popup_texto,
+        True,
+        (255,255,255)
+    )
+
+    fonte_opcao = pygame.font.SysFont(
+    "Arial",
+    24,
+    bold=True
+    )
+
+    opcao = fonte_opcao.render(
+        "[C] Comprar   [P] Passar",
+        True,
+        (255,255,255)
+    )
+
+    window.blit(opcao, (700, 520))
+
+    window.blit(titulo, (650, 300))
+    window.blit(texto, (650, 380))
+
 
 CASAS = [
 
@@ -120,6 +190,20 @@ player3_image = pygame.transform.scale(player3_image, (PLAYER_WIDTH, PLAYER_HEIG
 
 player4_image = pygame.image.load(os.path.join("images", "P4.png")).convert_alpha()
 player4_image = pygame.transform.scale(player4_image, (PLAYER_WIDTH, PLAYER_HEIGHT))
+
+dados_imagens = {}
+
+for i in range(1, 7):
+    img = pygame.image.load(
+        os.path.join("images", f"dado{i}.png")
+    ).convert_alpha()
+
+    img = pygame.transform.scale(
+        img,
+        (80, 80)
+    )
+
+    dados_imagens[i] = img
 
 # Window
 pygame.display.set_caption("Technopoly")
@@ -202,77 +286,196 @@ def draw():
     window.blit(player2.image, player2)
     window.blit(player3.image, player3)
     window.blit(player4.image, player4)
+    # Painel dourado
+    painel_x = 760
+    painel_y = 650
+    painel_largura = 400
+    painel_altura = 140
 
+    pygame.draw.rect(
+        window,
+        (30, 20, 5),  # fundo escuro
+        (painel_x, painel_y, painel_largura, painel_altura),
+        border_radius=20
+    )
+
+    pygame.draw.rect(
+        window,
+        (255, 215, 0),  # borda dourada
+        (painel_x, painel_y, painel_largura, painel_altura),
+        width=4,
+        border_radius=20
+    )
+
+    fonte = pygame.font.SysFont("Arial", 30, bold=True)
+    texto = fonte.render(
+        f"= {ultimo_dado_1 + ultimo_dado_2}",
+        True,
+        (255, 215, 0)
+    )
+
+    window.blit(
+        texto,
+        (painel_x + 165, painel_y + 90)
+    )
+
+    window.blit(
+    dados_imagens[ultimo_dado_1],
+    (painel_x + 70, painel_y + 30)
+    )
+
+    window.blit(
+        dados_imagens[ultimo_dado_2],
+        (painel_x + 230, painel_y + 30)
+    )
+
+    desenhar_popup()
 # Game Loop
-while True:
+def executar_jogo():
+    global popup_ativo
+    global popup_titulo
+    global popup_texto
+    global ultimo_dado_1
+    global ultimo_dado_2
+    global passos_restantes
+    global tempo_movimento
+    global jogador_atual
+    global current_frame
+    global aguardando_popup
 
-    for event in pygame.event.get():
+    while True:
 
-        if event.type == pygame.QUIT:
-            pygame.quit()
-            exit()
+        for event in pygame.event.get():
 
-        if event.type == pygame.KEYDOWN:
+            if event.type == pygame.QUIT:
+                pygame.quit()
+                exit()
 
-            if event.key == pygame.K_SPACE:
+            if event.type == pygame.KEYDOWN:
 
-                if passos_restantes == 0:
+                if aguardando_popup:
 
-                    resultado = game.dados.rolar()
+                    if event.key == pygame.K_c:
 
-                    try:
-                        passos_restantes = resultado.total
-                    except:
-                        passos_restantes = resultado
+                        print("COMPROU")
 
-                    print(
-                        f"Turno: {game.jogadores[jogador_atual].nome}"
-                    )
+                        popup_ativo = False
+                        aguardando_popup = False
 
-                    print(
-                        f"Andará {passos_restantes} casas"
-                    )
+                        jogador_atual += 1
+
+                        if jogador_atual >= len(game.jogadores):
+                            jogador_atual = 0
+
+                    elif event.key == pygame.K_p:
+
+                        print("PASSOU")
+
+                        popup_ativo = False
+                        aguardando_popup = False
+
+                        jogador_atual += 1
+
+                        if jogador_atual >= len(game.jogadores):
+                            jogador_atual = 0
+
+
+                if event.key == pygame.K_SPACE:
+
+                    if passos_restantes == 0 and not aguardando_popup:
+
+                        resultado = game.dados.rolar()
+                        ultimo_dado_1 = resultado.dado1
+                        ultimo_dado_2 = resultado.dado2
+                        print(ultimo_dado_1)
+                        print(ultimo_dado_2)
+
+                        try:
+                            passos_restantes = resultado.total
+                        except:
+                            passos_restantes = resultado
+
+                        print(
+                            f"Turno: {game.jogadores[jogador_atual].nome}"
+                        )
 
         tempo_movimento += 1
 
-        if tempo_movimento > 1:
+        if tempo_movimento > 4:
 
             tempo_movimento = 0
 
             if passos_restantes > 0:
 
                 game.jogadores[jogador_atual].mover(
-                 1,
-                 len(CASAS)
+                    1,
+                    len(CASAS)
                 )
+
                 passos_restantes -= 1
 
                 if passos_restantes == 0:
 
-                    print(f"Fim do turno de {game.jogadores[jogador_atual].nome}"
-                    )
-
-                    jogador_atual += 1
-
-                    if jogador_atual >= len(game.jogadores):
-                        jogador_atual = 0
-
-                    print(
-                        f"Próximo jogador: {game.jogadores[jogador_atual].nome}"
+                    casa = game.tabuleiro.get_casa(
+                    game.jogadores[jogador_atual].posicao
                     )
 
                     print(
-                        f"Posição: {game.jogadores[0].posicao}"
+                        "POS:",
+                        game.jogadores[jogador_atual].posicao
                     )
 
+                    print(
+                        "CASA:",
+                        game.tabuleiro.get_casa(
+                            game.jogadores[jogador_atual].posicao
+                        ).nome
+                    )
+
+                    popup_ativo = True
+                    popup_titulo = casa.nome
+                    aguardando_popup = True
+
+                    if casa.tipo == TipoCasa.PROPRIEDADE:
+
+                        popup_texto = (
+                            f"Preço: ${casa.preco}\n"
+                            f"Aluguel: ${casa.aluguel_base}\n"
+                            f"Hipoteca: ${casa.valor_hipoteca}\n"
+                            f"Custo Andar: ${casa.preco_andar}"
+                        )
+
+                    elif casa.tipo == TipoCasa.SORTE:
+
+                        popup_texto = "Você caiu em Sorte!"
+
+                    elif casa.tipo == TipoCasa.NADA:
+
+                        popup_texto = "Zona Neutra"
+
+                    elif casa.tipo == TipoCasa.FERIAS:
+
+                        popup_texto = "Hora de descansar!"
+
+                    elif casa.tipo == TipoCasa.PRISAO:
+
+                        popup_texto = "Visitando a prisão"
+
+                    print("CAIU EM:", casa.nome)
+
+            
         current_frame += animation_speed
 
         if current_frame >= len(frames):
-                       current_frame = 0
+            current_frame = 0
 
         atualizar_posicoes()
 
         draw()
 
         pygame.display.update()
+
         clock.tick(60)
+
+if __name__ == "__main__":
+    executar_jogo()
