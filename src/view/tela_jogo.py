@@ -1,481 +1,456 @@
+# src/view/tela_jogo_corrigida.py
 import sys
 import os
+import io
+import pygame
+from sys import exit
 
 ROOT_DIR = os.path.abspath(
     os.path.join(os.path.dirname(__file__), "..", "..")
 )
-
 sys.path.insert(0, ROOT_DIR)
-
-import pygame
-from sys import exit
 
 from src.core.game import Monopoly
 from src.core.propriedade import TipoCasa
 
-aguardando_popup = False
-
-passos_restantes = 0
-tempo_movimento = 0
-jogador_atual = 0
-ultimo_dado_1 = 1
-ultimo_dado_2 = 1
-
-popup_ativo = False
-popup_titulo = ""
-popup_texto = ""
-
-# Game Variables
-GAME_WIDTH = 1920
+# ---------------------------------------------------------------------------
+# CONSTANTES
+# ---------------------------------------------------------------------------
+GAME_WIDTH  = 1920
 GAME_HEIGHT = 1040
-
-PLAYER_WIDTH = 65
+PLAYER_WIDTH  = 65
 PLAYER_HEIGHT = 75
 
-current_frame = 0
-animation_speed = 0.01
+ANIM_FPS = 8
 
-pygame.init()
+# Cores
+DOURADO      = (255, 215, 0)
+DOURADO_ESC  = (180, 140, 0)
+FUNDO_ESCURO = (20, 15, 5)
+BRANCO       = (255, 255, 255)
+PRETO        = (0, 0, 0)
 
-game = Monopoly([
-    "Guaxinim",
-    "Capivara",
-    "Cristo",
-    "Urso"
-])
+# Caminho dos assets unificado
+SPRITES_BASE = os.path.join(ROOT_DIR, "assets", "images", "sprites", "peoes")
 
-print("Total de casas:", game.tabuleiro.total)
-
-# Images
-frames = [
-    pygame.image.load(os.path.join("images", "tabuleiro.png")),
-]
-
-def desenhar_popup():
-
-    if not popup_ativo:
-        return
-
-    pygame.draw.rect(
-        window,
-        (20, 20, 20),
-        (560, 250, 800, 400),
-        border_radius=25
-    )
-
-    pygame.draw.rect(
-        window,
-        (255, 215, 0),
-        (560, 250, 800, 400),
-        width=4,
-        border_radius=25
-    )
-
-    fonte_titulo = pygame.font.SysFont(
-        "Arial",
-        40,
-        bold=True
-    )
-
-    fonte_texto = pygame.font.SysFont(
-        "Arial",
-        28
-    )
-
-    titulo = fonte_titulo.render(
-        popup_titulo,
-        True,
-        (255, 215, 0)
-    )
-
-    texto = fonte_texto.render(
-        popup_texto,
-        True,
-        (255,255,255)
-    )
-
-    fonte_opcao = pygame.font.SysFont(
-    "Arial",
-    24,
-    bold=True
-    )
-
-    opcao = fonte_opcao.render(
-        "[C] Comprar   [P] Passar",
-        True,
-        (255,255,255)
-    )
-
-    window.blit(opcao, (700, 520))
-
-    window.blit(titulo, (650, 300))
-    window.blit(texto, (650, 380))
-
-
-CASAS = [
-
-    # 0 = PARTIDA (canto superior direito)
-    (1680, 130),
-
-    # DESCENDO PELA DIREITA
-    (1635, 180),  # 1
-    (1635, 240),  # 2
-    (1635, 310),  # 3
-    (1635, 410),  # 4
-    (1635, 500),  # 5
-    (1635, 590),  # 6
-    (1635, 670),  # 7
-    (1635, 780),  # 8
-
-    # VÁ PARA PRISÃO
-    (1750, 885),  # 9
-
-    # INDO PARA ESQUERDA (parte de baixo)
-    (1550, 800),  # 10
-    (1430, 800),  # 11
-    (1300, 800),  # 12
-    (1150, 800),  # 13
-    (1040, 800),   # 14
-    (900, 800),   # 15
-    (740, 800),   # 16
-    (600, 800),   # 17
-    (440, 800),   # 18
-    (310, 800),   # 19
-
-    # FÉRIAS
-    (160, 885),   # 20
-
-    # SUBINDO PELA ESQUERDA
-    (230, 795),   # 21
-    (230, 705),   # 22
-    (230, 615),   # 23
-    (230, 525),   # 24
-    (230, 435),   # 25
-    (230, 345),   # 26
-    (230, 255),   # 27
-
-    # PRISÃO
-    (230, 165),   # 28
-
-    # INDO PARA DIREITA (parte de cima)
-    (230, 130),   # 29
-    (300, 130),   # 30
-    (420, 130),   # 31
-    (580, 130),   # 32
-    (700, 130),   # 33
-    (910, 130),  # 34
-    (1050, 130),  # 35
-    (1190, 130),  # 36
-    (1330, 130),  # 37
-
-    # FECHAMENTO
-    (1450, 130),  # 38
-    (1580, 130),  # 39
-]
-
-frames = [
-    pygame.transform.scale(frame, (GAME_WIDTH, GAME_HEIGHT))
-    for frame in frames
-]
+# Janela global de renderização
 window = pygame.display.set_mode((GAME_WIDTH, GAME_HEIGHT))
-# Jogadores
-player1_image = pygame.image.load(os.path.join("images", "P1.png")).convert_alpha()
-player1_image = pygame.transform.scale(player1_image, (PLAYER_WIDTH, PLAYER_HEIGHT))
-
-player2_image = pygame.image.load(os.path.join("images", "P2.png")).convert_alpha()
-player2_image = pygame.transform.scale(player2_image, (PLAYER_WIDTH, PLAYER_HEIGHT))
-
-player3_image = pygame.image.load(os.path.join("images", "P3.png")).convert_alpha()
-player3_image = pygame.transform.scale(player3_image, (PLAYER_WIDTH, PLAYER_HEIGHT))
-
-player4_image = pygame.image.load(os.path.join("images", "P4.png")).convert_alpha()
-player4_image = pygame.transform.scale(player4_image, (PLAYER_WIDTH, PLAYER_HEIGHT))
-
-dados_imagens = {}
-
-for i in range(1, 7):
-    img = pygame.image.load(
-        os.path.join("images", f"dado{i}.png")
-    ).convert_alpha()
-
-    img = pygame.transform.scale(
-        img,
-        (80, 80)
-    )
-
-    dados_imagens[i] = img
-
-# Window
 pygame.display.set_caption("Technopoly")
 
-# Ícone da janela
-pygame.display.set_icon(player1_image)
+# Instanciação tardia do game engine dentro de executar_jogo()
+game = None
+anims = []
+n_jogadores_ativos = 4
+
+# ---------------------------------------------------------------------------
+# UTILS E FALLBACK DE SPRITES (ESTREITAMENTE PNG)
+# ---------------------------------------------------------------------------
+def _superficie_fallback(cor: tuple, w: int, h: int, label: str = "") -> pygame.Surface:
+    """Gera um bloco visual caso o arquivo PNG falte no disco."""
+    surf = pygame.Surface((w, h), pygame.SRCALPHA)
+    pygame.draw.rect(surf, cor, (0, 0, w, h), border_radius=8)
+    if label:
+        fonte = pygame.font.SysFont("Arial", 20, bold=True)
+        txt = fonte.render(label, True, BRANCO)
+        surf.blit(txt, (w // 2 - txt.get_width() // 2, h // 2 - txt.get_height() // 2))
+    return surf
+
+DIRECOES       = ["R", "L", "T", "B"]
+N_FRAMES       = 6
+CORES_FALLBACK = [(220, 50, 50), (50, 100, 220), (50, 180, 50), (220, 180, 50), (180, 50, 180), (50, 180, 180), (200, 120, 50)]
+
+def _carregar_sprites(personagem_id: int) -> dict:
+    """Carrega as animações de caminhada e frame estático em PNG."""
+    pasta = os.path.join(SPRITES_BASE, f"PERSONAGEM{personagem_id}")
+    cor   = CORES_FALLBACK[(personagem_id - 1) % len(CORES_FALLBACK)]
+
+    def fallback():
+        return _superficie_fallback(cor, PLAYER_WIDTH, PLAYER_HEIGHT, f"P{personagem_id}")
+
+    sprites = {}
+
+    # Carrega frames de movimento
+    for direcao in DIRECOES:
+        frames = []
+        for i in range(1, N_FRAMES + 1):
+            caminho = os.path.join(pasta, f"RUN-{i}-{direcao}.png")
+            if os.path.isfile(caminho):
+                img = pygame.image.load(caminho).convert_alpha()
+                img = pygame.transform.scale(img, (PLAYER_WIDTH, PLAYER_HEIGHT))
+                frames.append(img)
+            else:
+                frames.append(fallback())
+        sprites[direcao] = frames
+
+    # CORREÇÃO CRÍTICA DO BUG DA TUPLA: Carrega o frame parado estritamente como Surface
+    caminho_stop = os.path.join(pasta, "STOP.png")
+    if os.path.isfile(caminho_stop):
+        try:
+            surf = pygame.image.load(caminho_stop).convert_alpha()
+            surf = pygame.transform.scale(surf, (PLAYER_WIDTH, PLAYER_HEIGHT))
+        except Exception:
+            surf = fallback()
+    else:
+        surf = fallback()
+        
+    sprites["STOP"] = [surf]
+    return sprites
+
+# Dicionário global de Sprites mapeando os IDs de 1 a 7
+#SPRITES = {i: _carregar_sprites(i) for i in range(1, 8)}
+SPRITES = {}
+
+# Mapeamento de Casas do Tabuleiro
+CASAS = [
+    (1680, 130), (1635, 180), (1635, 240), (1635, 310), (1635, 410), (1635, 500), (1635, 590), (1635, 670), (1635, 780),
+    (1750, 885), (1550, 800), (1430, 800), (1300, 800), (1150, 800), (1040, 800), (900,  800), (740,  800), (600,  800),
+    (440,  800), (310,  800), (160,  885), (230,  795), (230,  705), (230,  615), (230,  525), (230,  435), (230,  345),
+    (230,  255), (230,  165), (230,  130), (300,  130), (420,  130), (580,  130), (700,  130), (910,  130), (1050, 130),
+    (1190, 130), (1330, 130), (1450, 130), (1580, 130)
+]
+
+# Recursos de Imagem estáticos
+tabuleiro_img = pygame.image.load(os.path.join("images", "tabuleiro.png"))
+tabuleiro_img = pygame.transform.scale(tabuleiro_img, (GAME_WIDTH, GAME_HEIGHT))
+
+dados_imagens = {}
+for i in range(1, 7):
+    img = pygame.image.load(os.path.join("images", f"dado{i}.png")).convert_alpha()
+    dados_imagens[i] = pygame.transform.scale(img, (80, 80))
 
 clock = pygame.time.Clock()
 
+pygame.init()
+pygame.font.init()
 
-class Player(pygame.Rect):
-    def __init__(self, x, y, image):
-        super().__init__(x, y, PLAYER_WIDTH, PLAYER_HEIGHT)
-        self.image = image
+# Fontes
+fonte_titulo  = pygame.font.SysFont("Arial", 36, bold=True)
+fonte_normal  = pygame.font.SysFont("Arial", 24)
+fonte_pequena = pygame.font.SysFont("Arial", 18)
+fonte_card    = pygame.font.SysFont("Arial", 20, bold=True)
+fonte_card_sm = pygame.font.SysFont("Arial", 16)
 
+# ---------------------------------------------------------------------------
+# GERENCIAMENTO DE ANIMAÇÕES
+# ---------------------------------------------------------------------------
+class EstadoAnim:
+    def __init__(self):
+        self.frame_idx = 0.0
+        self.direcao   = "STOP"
+        self.movendo   = False
 
-# 4 jogadores no canto superior direito
-player1 = Player(0, 0, player1_image)
-player2 = Player(0, 0, player2_image)
-player3 = Player(0, 0, player3_image)
-player4 = Player(0, 0, player4_image)
+    def atualizar(self, dt_ms: int, char_id: int):
+        if self.movendo and self.direcao != "STOP":
+            self.frame_idx += (ANIM_FPS * dt_ms) / 1000.0
+            total = len(SPRITES[char_id][self.direcao])
+            if self.frame_idx >= total:
+                self.frame_idx = 0.0
 
-def atualizar_posicoes():
+    def get_frame(self, char_id: int) -> pygame.Surface:
+        direcao = self.direcao if self.movendo else "STOP"
+        frames  = SPRITES[char_id].get(direcao, SPRITES[char_id]["STOP"])
+        idx     = int(self.frame_idx) % len(frames)
+        return frames[idx]
 
-    j1 = game.jogadores[0]
-    j2 = game.jogadores[1]
-    j3 = game.jogadores[2]
-    j4 = game.jogadores[3]
+    def iniciar_movimento(self, direcao: str):
+        self.direcao   = direcao
+        self.movendo   = True
+        self.frame_idx = 0.0
 
-    player1.x, player1.y = CASAS[j1.posicao]
-    player2.x, player2.y = CASAS[j2.posicao]
-    player3.x, player3.y = CASAS[j3.posicao]
-    player4.x, player4.y = CASAS[j4.posicao]
+    def parar(self):
+        self.movendo   = False
+        self.direcao   = "STOP"
+        self.frame_idx = 0.0
 
-    # evita sobreposição
-    player2.x += 15
+def _calcular_direcao(pos_atual: int, proxima: int) -> str:
+    if pos_atual >= len(CASAS) or proxima >= len(CASAS):
+        return "R"
+    ax, ay = CASAS[pos_atual]
+    bx, by = CASAS[proxima]
+    dx, dy = bx - ax, by - ay
+    if abs(dx) >= abs(dy):
+        return "R" if dx >= 0 else "L"
+    else:
+        return "B" if dy >= 0 else "T"
 
-    player3.y += 15
+# ---------------------------------------------------------------------------
+# ESTADOS DE CONTROLE
+# ---------------------------------------------------------------------------
+passos_restantes     = 0
+tempo_movimento      = 0
+jogador_atual_idx    = 0
+ultimo_dado_1        = 1
+ultimo_dado_2        = 1
+aguardando_popup     = False
+popup_ativo          = False
+popup_titulo         = ""
+popup_texto          = ""
+popup_eh_propriedade = False
 
-    player4.x += 15
-    player4.y += 15
+TIPOS_COMPRAVEIS = {TipoCasa.PROPRIEDADE}
+OFFSETS          = [(0, 0), (18, 0), (0, 18), (18, 18)]
+
+def get_pos_jogador(idx: int) -> tuple[int, int]:
+    pos = game.jogadores[idx].posicao % len(CASAS)
+    x, y = CASAS[pos]
+    ox, oy = OFFSETS[idx % 4]
+    return x + ox, y + oy
+
+# ---------------------------------------------------------------------------
+# CARD DO JOGADOR AJUSTADO (MAIS PARA BAIXO)
+# ---------------------------------------------------------------------------
+CARD_X   = 330
+CARD_Y   = 230  # Mudado de 170 para 230 para ficar mais baixo na zona interna
+CARD_W   = 310
+LINHA_H  = 22
+PADDING  = 14
+
+CARD_SPRITE_W = 80
+CARD_SPRITE_H = 92
+
+def _get_stop_sprite(personagem_num: int) -> pygame.Surface:
+    frame = SPRITES[personagem_num]["STOP"][0]
+    return pygame.transform.smoothscale(frame, (CARD_SPRITE_W, CARD_SPRITE_H))
+
+def desenhar_card_jogador():
+    if not game: return
+    j = game.jogadores[jogador_atual_idx]
+    
+    # Busca qual o ID real do herói escolhido na seleção de personagens
+    # Se o engine monopoly não salvar o ID escolhido, usaremos o ID do loop como fallback seguro
+    personagem_num = getattr(j, 'personagem_id', jogador_atual_idx + 1)
+
+    n_props = len(j.propriedades)
+    CARD_H = max(CARD_SPRITE_H + PADDING * 2 + 90, 180 + max(0, n_props - 1) * LINHA_H)
+
+    fundo = pygame.Surface((CARD_W, CARD_H), pygame.SRCALPHA)
+    fundo.fill((20, 15, 5, 215))
+    window.blit(fundo, (CARD_X, CARD_Y))
+
+    pygame.draw.rect(window, DOURADO, (CARD_X, CARD_Y, CARD_W, CARD_H), width=3, border_radius=18)
+
+    sprite_surf = _get_stop_sprite(personagem_num)
+    window.blit(sprite_surf, (CARD_X + PADDING, CARD_Y + PADDING))
+
+    sep_x = CARD_X + PADDING + CARD_SPRITE_W + 10
+    pygame.draw.line(window, DOURADO_ESC, (sep_x, CARD_Y + PADDING), (sep_x, CARD_Y + CARD_SPRITE_H + PADDING), 1)
+
+    texto_x = sep_x + 10
+    y = CARD_Y + PADDING
+
+    surf = fonte_card.render(f"✦ {j.nome}", True, DOURADO)
+    window.blit(surf, (texto_x, y))
+    y += 26
+
+    surf = fonte_card_sm.render(f"Herói P{personagem_num}", True, (180, 180, 180))
+    window.blit(surf, (texto_x, y))
+    y += 22
+
+    surf = fonte_card.render(f"$ {j.saldo:,}", True, BRANCO)
+    window.blit(surf, (texto_x, y))
+
+    sep_y = CARD_Y + CARD_SPRITE_H + PADDING + 8
+    pygame.draw.line(window, DOURADO_ESC, (CARD_X + PADDING, sep_y), (CARD_X + CARD_W - PADDING, sep_y), 1)
+    y = sep_y + 8
+
+    surf = fonte_card_sm.render("Propriedades:", True, DOURADO)
+    window.blit(surf, (CARD_X + PADDING, y))
+    y += LINHA_H + 2
+
+    if not j.propriedades:
+        surf = fonte_card_sm.render("  Nenhuma ainda", True, (140, 140, 140))
+        window.blit(surf, (CARD_X + PADDING, y))
+    else:
+        for pid in j.propriedades:
+            prop = game.tabuleiro.get_casa(pid)
+            andares_str = f" [{prop.andares}🏠]" if prop.andares > 0 else ""
+            hip_str     = " (Hip.)" if prop.hipotecada else ""
+            texto_prop  = f"  • {prop.nome}{andares_str}{hip_str}"
+
+            while fonte_card_sm.size(texto_prop)[0] > CARD_W - PADDING * 2 and len(texto_prop) > 5:
+                texto_prop = texto_prop[:-2] + "…"
+
+            surf = fonte_card_sm.render(texto_prop, True, BRANCO)
+            window.blit(surf, (CARD_X + PADDING, y))
+            y += LINHA_H
+
+def desenhar_popup():
+    if not popup_ativo: return
+    PX, PY, PW, PH = 560, 230, 800, 420
+    pygame.draw.rect(window, FUNDO_ESCURO, (PX, PY, PW, PH), border_radius=25)
+    pygame.draw.rect(window, DOURADO, (PX, PY, PW, PH), width=4, border_radius=25)
+
+    surf_titulo = fonte_titulo.render(popup_titulo, True, DOURADO)
+    window.blit(surf_titulo, (PX + 40, PY + 30))
+
+    pygame.draw.line(window, DOURADO_ESC, (PX + 40, PY + 80), (PX + PW - 40, PY + 80), 1)
+
+    y_texto = PY + 100
+    for linha in popup_texto.split("\n"):
+        surf = fonte_normal.render(linha, True, BRANCO)
+        window.blit(surf, (PX + 40, y_texto))
+        y_texto += 34
+
+    opcoes = "[C] Comprar     [P] Passar" if popup_eh_propriedade else "[P] Continuar"
+    surf_op = fonte_normal.render(opcoes, True, DOURADO)
+    window.blit(surf_op, (PX + 140, PY + PH - 55))
 
 def draw():
+    window.blit(tabuleiro_img, (0, 0))
 
-    window.blit(
-        frames[int(current_frame)],
-        (0, 0)
-    )
+    # Renderiza os peões na quantidade exata de jogadores configurados
+    for idx in range(n_jogadores_ativos):
+        j = game.jogadores[idx]
+        personagem_num = getattr(j, 'personagem_id', idx + 1)
+        frame = anims[idx].get_frame(personagem_num)
+        x, y  = get_pos_jogador(idx)
+        window.blit(frame, (x, y))
 
-    # marcadores coloridos
-    pygame.draw.circle(
-        window,
-        (255, 0, 0),
-        (player1.centerx, player1.centery),
-        12
-    )
+    # Painel de dados
+    painel_x, painel_y = 760, 650
+    pygame.draw.rect(window, FUNDO_ESCURO, (painel_x, painel_y, 400, 140), border_radius=20)
+    pygame.draw.rect(window, DOURADO, (painel_x, painel_y, 400, 140), width=4, border_radius=20)
 
-    pygame.draw.circle(
-        window,
-        (0, 0, 255),
-        (player2.centerx, player2.centery),
-        12
-    )
+    window.blit(dados_imagens[ultimo_dado_1], (painel_x + 70,  painel_y + 30))
+    window.blit(dados_imagens[ultimo_dado_2], (painel_x + 230, painel_y + 30))
 
-    pygame.draw.circle(
-        window,
-        (0, 255, 0),
-        (player3.centerx, player3.centery),
-        12
-    )
+    soma_surf = fonte_titulo.render(f"= {ultimo_dado_1 + ultimo_dado_2}", True, DOURADO)
+    window.blit(soma_surf, (painel_x + 160, painel_y + 95))
 
-    pygame.draw.circle(
-        window,
-        (255, 255, 0),
-        (player4.centerx, player4.centery),
-        12
-    )
-
-    window.blit(player1.image, player1)
-    window.blit(player2.image, player2)
-    window.blit(player3.image, player3)
-    window.blit(player4.image, player4)
-    # Painel dourado
-    painel_x = 760
-    painel_y = 650
-    painel_largura = 400
-    painel_altura = 140
-
-    pygame.draw.rect(
-        window,
-        (30, 20, 5),  # fundo escuro
-        (painel_x, painel_y, painel_largura, painel_altura),
-        border_radius=20
-    )
-
-    pygame.draw.rect(
-        window,
-        (255, 215, 0),  # borda dourada
-        (painel_x, painel_y, painel_largura, painel_altura),
-        width=4,
-        border_radius=20
-    )
-
-    fonte = pygame.font.SysFont("Arial", 30, bold=True)
-    texto = fonte.render(
-        f"= {ultimo_dado_1 + ultimo_dado_2}",
-        True,
-        (255, 215, 0)
-    )
-
-    window.blit(
-        texto,
-        (painel_x + 165, painel_y + 90)
-    )
-
-    window.blit(
-    dados_imagens[ultimo_dado_1],
-    (painel_x + 70, painel_y + 30)
-    )
-
-    window.blit(
-        dados_imagens[ultimo_dado_2],
-        (painel_x + 230, painel_y + 30)
-    )
-
+    desenhar_card_jogador()
     desenhar_popup()
-# Game Loop
-def executar_jogo():
-    global popup_ativo
-    global popup_titulo
-    global popup_texto
-    global ultimo_dado_1
-    global ultimo_dado_2
-    global passos_restantes
-    global tempo_movimento
-    global jogador_atual
-    global current_frame
-    global aguardando_popup
 
+# ---------------------------------------------------------------------------
+# LOOP PRINCIPAL DO CORE DO JOGO (DINÂMICO)
+# ---------------------------------------------------------------------------
+def executar_jogo(lista_jogadores_config=None):
+    global popup_ativo, popup_titulo, popup_texto, popup_eh_propriedade
+    global ultimo_dado_1, ultimo_dado_2, passos_restantes, tempo_movimento
+    global jogador_atual_idx, aguardando_popup, game, anims, n_jogadores_ativos, SPRITES
+
+    # 1. Se o dicionário de sprites estiver vazio, carrega (Correção do bug anterior)
+    if not SPRITES:
+        SPRITES.update({i: _carregar_sprites(i) for i in range(1, 8)})
+        
+    # 2. DEFESA CONTRA NONE (CORREÇÃO ATUAL): Mover o fallback para ANTES do len()
+    if lista_jogadores_config is None:
+        lista_jogadores_config = [
+            {"nome": "Jogador 1", "personagem": 1},
+            {"nome": "Jogador 2", "personagem": 2}
+        ]
+
+    # 3. Agora sim podemos ler o tamanho e mapear com total segurança!
+    n_jogadores_ativos = len(lista_jogadores_config)
+    nomes_pure = [item["nome"] for item in lista_jogadores_config]
+    
+    # Inicializa o motor central de simulação Monopoly com os nomes corretos
+    game = Monopoly(nomes_pure)
+    
+    # Aloca e vincula o ID do Personagem dentro de cada objeto Jogador do motor
+    for i, cfg in enumerate(lista_jogadores_config):
+        game.jogadores[i].personagem_id = cfg["personagem"]
+
+    anims = [EstadoAnim() for _ in range(n_jogadores_ativos)]
+    pos_antes_mover = [j.posicao for j in game.jogadores]
     while True:
+        dt = clock.tick(60)
 
         for event in pygame.event.get():
-
             if event.type == pygame.QUIT:
                 pygame.quit()
                 exit()
 
             if event.type == pygame.KEYDOWN:
-
                 if aguardando_popup:
-
-                    if event.key == pygame.K_c:
-
-                        print("COMPROU")
-
-                        popup_ativo = False
+                    casa_atual = game.tabuleiro.get_casa(game.jogadores[jogador_atual_idx].posicao)
+                    if event.key == pygame.K_c and popup_eh_propriedade:
+                        from src.core import transacoes
+                        transacoes.comprar_propriedade(game.jogadores[jogador_atual_idx], casa_atual)
+                        popup_ativo      = False
                         aguardando_popup = False
-
-                        jogador_atual += 1
-
-                        if jogador_atual >= len(game.jogadores):
-                            jogador_atual = 0
+                        anims[jogador_atual_idx].parar()
+                        jogador_atual_idx = (jogador_atual_idx + 1) % n_jogadores_ativos
 
                     elif event.key == pygame.K_p:
-
-                        print("PASSOU")
-
-                        popup_ativo = False
+                        popup_ativo      = False
                         aguardando_popup = False
+                        anims[jogador_atual_idx].parar()
+                        jogador_atual_idx = (jogador_atual_idx + 1) % n_jogadores_ativos
 
-                        jogador_atual += 1
-
-                        if jogador_atual >= len(game.jogadores):
-                            jogador_atual = 0
-
-
-                if event.key == pygame.K_SPACE:
-
+                
+                elif event.key == pygame.K_SPACE:
                     if passos_restantes == 0 and not aguardando_popup:
+                        resultado        = game.dados.rolar()
+                        ultimo_dado_1    = resultado.dado1
+                        ultimo_dado_2    = resultado.dado2
+                        passos_restantes = resultado.total
+                        pos_antes_mover[jogador_atual_idx] = game.jogadores[jogador_atual_idx].posicao
 
-                        resultado = game.dados.rolar()
-                        ultimo_dado_1 = resultado.dado1
-                        ultimo_dado_2 = resultado.dado2
-                        print(ultimo_dado_1)
-                        print(ultimo_dado_2)
-
-                        try:
-                            passos_restantes = resultado.total
-                        except:
-                            passos_restantes = resultado
-
-                        print(
-                            f"Turno: {game.jogadores[jogador_atual].nome}"
-                        )
-
+        # Lógica de atualização de posições passo a passo
         tempo_movimento += 1
-
-        if tempo_movimento > 4:
-
+        if tempo_movimento > 4 and passos_restantes > 0:
             tempo_movimento = 0
+            j = game.jogadores[jogador_atual_idx]
+            pos_old = j.posicao
+            j.posicao = (j.posicao + 1) % len(CASAS)
+            passos_restantes -= 1
 
-            if passos_restantes > 0:
+            direcao = _calcular_direcao(pos_old, j.posicao)
+            anims[jogador_atual_idx].iniciar_movimento(direcao)
 
-                game.jogadores[jogador_atual].mover(
-                    1,
-                    len(CASAS)
-                )
+            if passos_restantes == 0:
+                anims[jogador_atual_idx].parar()
+                casa = game.tabuleiro.get_casa(j.posicao)
 
-                passos_restantes -= 1
+                popup_eh_propriedade = (casa.tipo in TIPOS_COMPRAVEIS and casa.esta_disponivel())
+                popup_ativo      = True
+                popup_titulo     = casa.nome
+                aguardando_popup = True
 
-                if passos_restantes == 0:
-
-                    casa = game.tabuleiro.get_casa(
-                    game.jogadores[jogador_atual].posicao
+                if casa.tipo == TipoCasa.PROPRIEDADE:
+                    dono = game.jogadores[casa.dono_id].nome if casa.dono_id is not None else "Disponível"
+                    popup_texto = (
+                        f"Preço:        ${casa.preco}\n"
+                        f"Aluguel base: ${casa.aluguel_base}\n"
+                        f"Hipoteca:     ${casa.valor_hipoteca}\n"
+                        f"Custo andar:  ${casa.preco_andar}\n"
+                        f"Dono: {dono}"
                     )
+                elif casa.tipo == TipoCasa.SORTE:
+                    popup_texto = "Você caiu em Sorte!\nSaque uma carta."
+                elif casa.tipo == TipoCasa.AZAR:
+                    popup_texto = "Você caiu em Azar!\nSaque uma carta."
+                elif casa.tipo == TipoCasa.FERIAS:
+                    popup_texto = "Hora de descansar!\nVocê está de férias."
+                elif casa.tipo == TipoCasa.PRISAO:
+                    popup_texto = "Apenas visitando a prisão.\nNada acontece."
+                elif casa.tipo == TipoCasa.IR_PARA_PRISAO:
+                    popup_texto = "Vá direto para a prisão!\nNão passe pelo Início."
+                elif casa.tipo == TipoCasa.IMPOSTO:
+                    popup_texto = "Imposto de Renda!\nPague $200 ao banco."
+                elif casa.tipo == TipoCasa.INICIO:
+                    popup_texto = "Você passou pelo Início!\nReceba $200."
+                else:
+                    popup_texto = "Casa sem efeito especial."
 
-                    print(
-                        "POS:",
-                        game.jogadores[jogador_atual].posicao
-                    )
-
-                    print(
-                        "CASA:",
-                        game.tabuleiro.get_casa(
-                            game.jogadores[jogador_atual].posicao
-                        ).nome
-                    )
-
-                    popup_ativo = True
-                    popup_titulo = casa.nome
-                    aguardando_popup = True
-
-                    if casa.tipo == TipoCasa.PROPRIEDADE:
-
-                        popup_texto = (
-                            f"Preço: ${casa.preco}\n"
-                            f"Aluguel: ${casa.aluguel_base}\n"
-                            f"Hipoteca: ${casa.valor_hipoteca}\n"
-                            f"Custo Andar: ${casa.preco_andar}"
-                        )
-
-                    elif casa.tipo == TipoCasa.SORTE:
-
-                        popup_texto = "Você caiu em Sorte!"
-
-                    elif casa.tipo == TipoCasa.NADA:
-
-                        popup_texto = "Zona Neutra"
-
-                    elif casa.tipo == TipoCasa.FERIAS:
-
-                        popup_texto = "Hora de descansar!"
-
-                    elif casa.tipo == TipoCasa.PRISAO:
-
-                        popup_texto = "Visitando a prisão"
-
-                    print("CAIU EM:", casa.nome)
-
-            
-        current_frame += animation_speed
-
-        if current_frame >= len(frames):
-            current_frame = 0
-
-        atualizar_posicoes()
+        for idx, anim in enumerate(anims):
+            p_id = getattr(game.jogadores[idx], 'personagem_id', idx + 1)
+            anim.atualizar(dt, p_id)
 
         draw()
-
         pygame.display.update()
 
-        clock.tick(60)
-
 if __name__ == "__main__":
-    executar_jogo()
+    # Garante que o jogo comece pelo Menu Principal, desencadeando as telas certas!
+    menu = TelaMenu()
+    print("🖥️ Inicializando a janela gráfica do Pygame...")
+    resultado = menu.rodar_menu()
+    
+    if resultado == "INICIAR":
+        print("👥 Abrindo a seleção de personagens...")
+        tela_selecao = TelaSelecao(menu.tela)
+        lista_jogadores = tela_selecao.rodar()
+        
+        if lista_jogadores:
+            print("🎲 Iniciando o Tabuleiro com os jogadores configurados!")
+            executar_jogo(lista_jogadores)
