@@ -12,13 +12,16 @@ from sys import exit
 
 from src.core.game import Monopoly
 
+passos_restantes = 0
+tempo_movimento = 0
+jogador_atual = 0
 
 # Game Variables
 GAME_WIDTH = 1920
 GAME_HEIGHT = 1040
 
-PLAYER_WIDTH = 69
-PLAYER_HEIGHT = 80
+PLAYER_WIDTH = 65
+PLAYER_HEIGHT = 75
 
 current_frame = 0
 animation_speed = 0.01
@@ -31,6 +34,9 @@ game = Monopoly([
     "Cristo",
     "Guaxinim"
 ])
+
+print("Total de casas:", game.tabuleiro.total)
+
 # Images
 frames = [
     pygame.image.load(os.path.join("images", "tabuleiro.png")),
@@ -38,60 +44,63 @@ frames = [
 
 CASAS = [
 
-    # TOPO
-    (1580, 70),   # 0
-    (1450, 70),   # 1
-    (1320, 70),   # 2
-    (1190, 70),   # 3
-    (1060, 70),   # 4
-    (930, 70),    # 5
-    (800, 70),    # 6
-    (670, 70),    # 7
-    (540, 70),    # 8
-    (410, 70),    # 9
+    # 0 = PARTIDA (canto superior direito)
+    (1680, 130),
 
-    # PRISÃO
-    (220, 70),    # 10
-
-    # ESQUERDA
-    (220, 180),   # 11
-    (220, 280),   # 12
-    (220, 380),   # 13
-    (220, 480),   # 14
-    (220, 580),   # 15
-    (220, 680),   # 16
-    (220, 780),   # 17
-    (220, 880),   # 18
-
-    # FÉRIAS
-    (220, 950),   # 19
-
-    # BAIXO
-    (380, 950),   # 20
-    (510, 950),   # 21
-    (640, 950),   # 22
-    (770, 950),   # 23
-    (900, 950),   # 24
-    (1030, 950),  # 25
-    (1160, 950),  # 26
-    (1290, 950),  # 27
-    (1420, 950),  # 28
-    (1550, 950),  # 29
+    # DESCENDO PELA DIREITA
+    (1635, 180),  # 1
+    (1635, 240),  # 2
+    (1635, 310),  # 3
+    (1635, 410),  # 4
+    (1635, 500),  # 5
+    (1635, 590),  # 6
+    (1635, 670),  # 7
+    (1635, 780),  # 8
 
     # VÁ PARA PRISÃO
-    (1700, 950),  # 30
+    (1750, 885),  # 9
 
-    # DIREITA
-    (1700, 850),  # 31
-    (1700, 750),  # 32
-    (1700, 650),  # 33
-    (1700, 550),  # 34
-    (1700, 450),  # 35
-    (1700, 350),  # 36
-    (1700, 250),  # 37
-    (1700, 150),  # 38
+    # INDO PARA ESQUERDA (parte de baixo)
+    (1550, 800),  # 10
+    (1430, 800),  # 11
+    (1300, 800),  # 12
+    (1150, 800),  # 13
+    (1040, 800),   # 14
+    (900, 800),   # 15
+    (740, 800),   # 16
+    (600, 800),   # 17
+    (440, 800),   # 18
+    (310, 800),   # 19
 
-    (1700, 70),   # 39
+    # FÉRIAS
+    (160, 885),   # 20
+
+    # SUBINDO PELA ESQUERDA
+    (230, 795),   # 21
+    (230, 705),   # 22
+    (230, 615),   # 23
+    (230, 525),   # 24
+    (230, 435),   # 25
+    (230, 345),   # 26
+    (230, 255),   # 27
+
+    # PRISÃO
+    (230, 165),   # 28
+
+    # INDO PARA DIREITA (parte de cima)
+    (230, 130),   # 29
+    (300, 130),   # 30
+    (420, 130),   # 31
+    (580, 130),   # 32
+    (700, 130),   # 33
+    (910, 130),  # 34
+    (1050, 130),  # 35
+    (1190, 130),  # 36
+    (1330, 130),  # 37
+
+    # FECHAMENTO
+    (1450, 130),  # 38
+    (1580, 130),  # 39
 ]
 
 frames = [
@@ -145,17 +154,48 @@ def atualizar_posicoes():
     player3.x, player3.y = CASAS[j3.posicao]
     player4.x, player4.y = CASAS[j4.posicao]
 
-    # deslocamento para não sobrepor
-    player2.x += 20
-    player3.y += 20
+    # evita sobreposição
+    player2.x += 15
 
-    player4.x += 20
-    player4.y += 20
+    player3.y += 15
+
+    player4.x += 15
+    player4.y += 15
 
 def draw():
+
     window.blit(
         frames[int(current_frame)],
         (0, 0)
+    )
+
+    # marcadores coloridos
+    pygame.draw.circle(
+        window,
+        (255, 0, 0),
+        (player1.centerx, player1.centery),
+        12
+    )
+
+    pygame.draw.circle(
+        window,
+        (0, 0, 255),
+        (player2.centerx, player2.centery),
+        12
+    )
+
+    pygame.draw.circle(
+        window,
+        (0, 255, 0),
+        (player3.centerx, player3.centery),
+        12
+    )
+
+    pygame.draw.circle(
+        window,
+        (255, 255, 0),
+        (player4.centerx, player4.centery),
+        12
     )
 
     window.blit(player1.image, player1)
@@ -163,35 +203,76 @@ def draw():
     window.blit(player3.image, player3)
     window.blit(player4.image, player4)
 
-
 # Game Loop
 while True:
 
-   for event in pygame.event.get():
+    for event in pygame.event.get():
 
-    if event.type == pygame.QUIT:
-        pygame.quit()
-        exit()
+        if event.type == pygame.QUIT:
+            pygame.quit()
+            exit()
 
-    if event.type == pygame.KEYDOWN:
+        if event.type == pygame.KEYDOWN:
 
-        if event.key == pygame.K_SPACE:
+            if event.key == pygame.K_SPACE:
 
-            print("ESPACO APERTADO")
+                if passos_restantes == 0:
 
-            resultado = game.dados.rolar()
+                    resultado = game.dados.rolar()
 
-            game.jogadores[0].mover(
-                resultado.total,
-                len(CASAS)
-            )
+                    try:
+                        passos_restantes = resultado.total
+                    except:
+                        passos_restantes = resultado
 
-            print(
-                f"Posicao: {game.jogadores[0].posicao}"
-            )
+                    print(
+                        f"Turno: {game.jogadores[jogador_atual].nome}"
+                    )
 
-    atualizar_posicoes()
-    draw()
+                    print(
+                        f"Andará {passos_restantes} casas"
+                    )
 
-    pygame.display.update()
-    clock.tick(120)
+        tempo_movimento += 1
+
+        if tempo_movimento > 1:
+
+            tempo_movimento = 0
+
+            if passos_restantes > 0:
+
+                game.jogadores[jogador_atual].mover(
+                 1,
+                 len(CASAS)
+                )
+                passos_restantes -= 1
+
+                if passos_restantes == 0:
+
+                    print(f"Fim do turno de {game.jogadores[jogador_atual].nome}"
+                    )
+
+                    jogador_atual += 1
+
+                    if jogador_atual >= len(game.jogadores):
+                        jogador_atual = 0
+
+                    print(
+                        f"Próximo jogador: {game.jogadores[jogador_atual].nome}"
+                    )
+
+                    print(
+                        f"Posição: {game.jogadores[0].posicao}"
+                    )
+
+        current_frame += animation_speed
+
+        if current_frame >= len(frames):
+                       current_frame = 0
+
+        atualizar_posicoes()
+
+        draw()
+
+        pygame.display.update()
+        clock.tick(60)

@@ -4,66 +4,64 @@ from typing import Optional
 
 
 def construir_tabuleiro() -> list[Propriedade]:
-    """
-    Fábrica do tabuleiro padrão com 40 casas.
 
-    DECISÃO DE DESIGN: Uma função fábrica simples em vez de uma classe complexa.
-    O tabuleiro em si é imutável após a criação — só os estados das propriedades
-    mudam. Mantém simples. (KISS > Over-engineering)
-    """
     casas = [
-        # --- INÍCIO ---
-        Propriedade(id=0, nome="Início", tipo=TipoCasa.INICIO),
 
-        # --- GRUPO ROXO ---
-        Propriedade(id=1, nome="Rua Mediterrâneo", tipo=TipoCasa.PROPRIEDADE,
-                    cor=CorGrupo.ROXO, preco=60, aluguel_base=2,
-                    aluguel_por_andar=[10, 30, 90, 160, 250],
-                    preco_andar=50, valor_hipoteca=30),
+    Propriedade(0, "Partida", TipoCasa.INICIO),
 
-        Propriedade(id=2, nome="Caixa Comunitária", tipo=TipoCasa.AZAR),
+    # DIREITA DESCENDO
+    Propriedade(1, "Shenzhen", TipoCasa.PROPRIEDADE),
+    Propriedade(2, "Porto Alegre", TipoCasa.PROPRIEDADE),
+    Propriedade(3, "Barcelona", TipoCasa.PROPRIEDADE),
+    Propriedade(4, "Curitiba", TipoCasa.PROPRIEDADE),
+    Propriedade(5, "Dublin", TipoCasa.PROPRIEDADE),
+    Propriedade(6, "Zona Neutra", TipoCasa.AZAR),
+    Propriedade(7, "Nova York", TipoCasa.PROPRIEDADE),
+    Propriedade(8, "Campinas", TipoCasa.PROPRIEDADE),
 
-        Propriedade(id=3, nome="Rua Báltica", tipo=TipoCasa.PROPRIEDADE,
-                    cor=CorGrupo.ROXO, preco=60, aluguel_base=4,
-                    aluguel_por_andar=[20, 60, 180, 320, 450],
-                    preco_andar=50, valor_hipoteca=30),
+    Propriedade(9, "Vá Para Prisão", TipoCasa.IR_PARA_PRISAO),
 
-        Propriedade(id=4, nome="Imposto de Renda", tipo=TipoCasa.IMPOSTO),
+    # BASE INDO PARA ESQUERDA
+    Propriedade(10, "Mônaco", TipoCasa.PROPRIEDADE),
+    Propriedade(11, "Intel", TipoCasa.PROPRIEDADE),
+    Propriedade(12, "Taipei", TipoCasa.PROPRIEDADE),
+    Propriedade(13, "Vancouver", TipoCasa.PROPRIEDADE),
+    Propriedade(14, "Berlim", TipoCasa.PROPRIEDADE),
+    Propriedade(15, "Tóquio", TipoCasa.PROPRIEDADE),
+    Propriedade(16, "Sorte", TipoCasa.SORTE),
+    Propriedade(17, "Belo Horizonte", TipoCasa.PROPRIEDADE),
+    Propriedade(18, "Hong Kong", TipoCasa.PROPRIEDADE),
 
-        # --- ESTAÇÕES ---
-        Propriedade(id=5, nome="Estação Leste", tipo=TipoCasa.PROPRIEDADE,
-                    cor=CorGrupo.ESTACAO, preco=200, aluguel_base=25,
-                    aluguel_por_andar=[50, 100, 200],  # 1, 2, 3, 4 estações
-                    valor_hipoteca=100),
+    Propriedade(19, "Férias", TipoCasa.FERIAS),
 
-        # --- GRUPO CIANO ---
-        Propriedade(id=6, nome="Av. Oriental", tipo=TipoCasa.PROPRIEDADE,
-                    cor=CorGrupo.CIANO, preco=100, aluguel_base=6,
-                    aluguel_por_andar=[30, 90, 270, 400, 550],
-                    preco_andar=50, valor_hipoteca=50),
+    # ESQUERDA SUBINDO
+    Propriedade(20, "Dubai", TipoCasa.PROPRIEDADE),
+    Propriedade(21, "Seattle", TipoCasa.PROPRIEDADE),
+    Propriedade(22, "Recife", TipoCasa.PROPRIEDADE),
+    Propriedade(23, "Amsterdã", TipoCasa.PROPRIEDADE),
+    Propriedade(24, "Nvidia", TipoCasa.PROPRIEDADE),
+    Propriedade(25, "Singapura", TipoCasa.PROPRIEDADE),
+    Propriedade(26, "Estocolmo", TipoCasa.PROPRIEDADE),
+    Propriedade(27, "Londres", TipoCasa.PROPRIEDADE),
 
-        Propriedade(id=7, nome="Sorte", tipo=TipoCasa.SORTE),
+    Propriedade(28, "Prisão", TipoCasa.PRISAO),
 
-        Propriedade(id=8, nome="Av. Vermont", tipo=TipoCasa.PROPRIEDADE,
-                    cor=CorGrupo.CIANO, preco=100, aluguel_base=6,
-                    aluguel_por_andar=[30, 90, 270, 400, 550],
-                    preco_andar=50, valor_hipoteca=50),
+    # TOPO INDO PARA DIREITA
+    Propriedade(29, "Zona Neutra", TipoCasa.AZAR),
+    Propriedade(30, "Xangai", TipoCasa.PROPRIEDADE),
+    Propriedade(31, "Toronto", TipoCasa.PROPRIEDADE),
+    Propriedade(32, "Tel Aviv", TipoCasa.PROPRIEDADE),
+    Propriedade(33, "Zurique", TipoCasa.PROPRIEDADE),
+    Propriedade(34, "Seul", TipoCasa.PROPRIEDADE),
+    Propriedade(35, "Sorte", TipoCasa.SORTE),
+    Propriedade(36, "Vale do Silício", TipoCasa.PROPRIEDADE),
+    Propriedade(37, "Austin", TipoCasa.PROPRIEDADE),
+    Propriedade(38, "San Francisco", TipoCasa.PROPRIEDADE),
 
-        Propriedade(id=9, nome="Av. Connecticut", tipo=TipoCasa.PROPRIEDADE,
-                    cor=CorGrupo.CIANO, preco=120, aluguel_base=8,
-                    aluguel_por_andar=[40, 100, 300, 450, 600],
-                    preco_andar=50, valor_hipoteca=60),
-
-        # --- CASAS ESPECIAIS ---
-        Propriedade(id=10, nome="Prisão / Férias", tipo=TipoCasa.PRISAO),
-        Propriedade(id=20, nome="Parque Gratuito", tipo=TipoCasa.FERIAS),
-        Propriedade(id=30, nome="Vá para a Prisão", tipo=TipoCasa.IR_PARA_PRISAO),
-
-        # NOTA: tabuleiro completo tem 40 casas — expandir conforme necessário
-        # Mantive reduzido aqui para legibilidade. A lógica está toda correta.
+    Propriedade(39, "San Francisco", TipoCasa.PROPRIEDADE),
     ]
-    return casas
 
+    return casas
 
 class Tabuleiro:
     """
