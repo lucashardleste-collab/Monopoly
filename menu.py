@@ -1,6 +1,7 @@
 # src/view/tela_menu.py
 import pygame
 import sys
+import os
 
 
 class TelaMenu:
@@ -14,7 +15,7 @@ class TelaMenu:
         pygame.display.set_caption("Monopoly Empire - Menu Principal")
 
         # 2. Carregar a imagem real de fundo (RF-019/9)
-        caminho_imagem = "Menu_imagem.png"
+        caminho_imagem = os.path.join("images", "Menu_imagem.png")
         try:
             self.imagem_fundo = pygame.image.load(caminho_imagem)
             self.imagem_fundo = pygame.transform.scale(self.imagem_fundo, (self.largura, self.altura))
