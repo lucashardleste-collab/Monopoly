@@ -10,8 +10,14 @@ ROOT_DIR = os.path.abspath(
 )
 sys.path.insert(0, ROOT_DIR)
 
+# --- IMPORTS DOS TEUS MÓDULOS DE LÓGICA (CORE) ---
+from src.core import cartas
+# Se precisares de tipos específicos do enum de cartas:
+from src.core.cartas import TipoEfeito
 from src.core.game import Monopoly
 from src.core.propriedade import TipoCasa
+
+
 
 # ---------------------------------------------------------------------------
 # CONSTANTES
@@ -277,23 +283,41 @@ def desenhar_card_jogador():
 def desenhar_popup():
     if not popup_ativo: return
     PX, PY, PW, PH = 560, 230, 800, 420
-    pygame.draw.rect(window, FUNDO_ESCURO, (PX, PY, PW, PH), border_radius=25)
-    pygame.draw.rect(window, DOURADO, (PX, PY, PW, PH), width=4, border_radius=25)
+    
+    # Define a cor da borda de forma inteligente com base no tipo de evento
+    if popup_eh_carta:
+        if "SORTE" in popup_titulo:
+            cor_borda_dinamica = (50, 220, 100)  # Verde Neon para Sorte
+        else:
+            cor_borda_dinamica = (220, 50, 50)   # Vermelho Alerta para Azar
+    else:
+        cor_borda_dinamica = DOURADO              # Dourado Clássico para propriedades e bancos
 
-    surf_titulo = fonte_titulo.render(popup_titulo, True, DOURADO)
+    # Desenha o fundo e a borda customizada
+    pygame.draw.rect(window, FUNDO_ESCURO, (PX, PY, PW, PH), border_radius=25)
+    pygame.draw.rect(window, cor_borda_dinamica, (PX, PY, PW, PH), width=4, border_radius=25)
+
+    # Título do Popup
+    surf_titulo = fonte_titulo.render(popup_titulo, True, cor_borda_dinamica)
     window.blit(surf_titulo, (PX + 40, PY + 30))
 
     pygame.draw.line(window, DOURADO_ESC, (PX + 40, PY + 80), (PX + PW - 40, PY + 80), 1)
 
-    y_texto = PY + 100
+    # Renderização do texto em linhas
+    y_texto = PY + 110
     for linha in popup_texto.split("\n"):
         surf = fonte_normal.render(linha, True, BRANCO)
         window.blit(surf, (PX + 40, y_texto))
         y_texto += 34
 
-    opcoes = "[C] Comprar     [P] Passar" if popup_eh_propriedade else "[P] Continuar"
-    surf_op = fonte_normal.render(opcoes, True, DOURADO)
-    window.blit(surf_op, (PX + 140, PY + PH - 55))
+    # Instrução de botões na parte de baixo
+    if popup_eh_propriedade:
+        opcoes = "[C] Comprar       [P] Passar Vez"
+    else:
+        opcoes = "[P] Fechar e Continuar"
+        
+    surf_op = fonte_normal.render(opcoes, True, cor_borda_dinamica)
+    window.blit(surf_op, (PX + 40, PY + PH - 55))
 
 def draw():
     window.blit(tabuleiro_img, (0, 0))
@@ -323,35 +347,40 @@ def draw():
 # ---------------------------------------------------------------------------
 # LOOP PRINCIPAL DO CORE DO JOGO (DINÂMICO)
 # ---------------------------------------------------------------------------
+popup_eh_carta = False  # Nova flag para sabermos se o popup atual é uma carta sacada
+carta_atual_objeto = None
+
 def executar_jogo(lista_jogadores_config=None):
-    global popup_ativo, popup_titulo, popup_texto, popup_eh_propriedade
+    global popup_ativo, popup_titulo, popup_texto, popup_eh_propriedade, popup_eh_carta, carta_atual_objeto
     global ultimo_dado_1, ultimo_dado_2, passos_restantes, tempo_movimento
     global jogador_atual_idx, aguardando_popup, game, anims, n_jogadores_ativos, SPRITES
 
-    # 1. Se o dicionário de sprites estiver vazio, carrega (Correção do bug anterior)
     if not SPRITES:
+        print("📦 Carregando sprites de peões...")
         SPRITES.update({i: _carregar_sprites(i) for i in range(1, 8)})
         
-    # 2. DEFESA CONTRA NONE (CORREÇÃO ATUAL): Mover o fallback para ANTES do len()
     if lista_jogadores_config is None:
         lista_jogadores_config = [
             {"nome": "Jogador 1", "personagem": 1},
             {"nome": "Jogador 2", "personagem": 2}
         ]
 
-    # 3. Agora sim podemos ler o tamanho e mapear com total segurança!
     n_jogadores_ativos = len(lista_jogadores_config)
     nomes_pure = [item["nome"] for item in lista_jogadores_config]
     
-    # Inicializa o motor central de simulação Monopoly com os nomes corretos
     game = Monopoly(nomes_pure)
     
-    # Aloca e vincula o ID do Personagem dentro de cada objeto Jogador do motor
     for i, cfg in enumerate(lista_jogadores_config):
         game.jogadores[i].personagem_id = cfg["personagem"]
 
     anims = [EstadoAnim() for _ in range(n_jogadores_ativos)]
-    pos_antes_mover = [j.posicao for j in game.jogadores]
+    
+    # IMPORTANTE: Criamos os baralhos de Sorte e Azar usando a lógica do seu cartas.py
+    baralho_sorte = cartas.criar_deck_sorte()
+    baralho_azar  = cartas.criar_deck_azar()
+
+    print(f"🎮 Jogo Iniciado! Vez de: {game.jogadores[jogador_atual_idx].nome}.")
+
     while True:
         dt = clock.tick(60)
 
@@ -363,76 +392,170 @@ def executar_jogo(lista_jogadores_config=None):
             if event.type == pygame.KEYDOWN:
                 if aguardando_popup:
                     casa_atual = game.tabuleiro.get_casa(game.jogadores[jogador_atual_idx].posicao)
-                    if event.key == pygame.K_c and popup_eh_propriedade:
+                    
+                    # Caso 1: Fechamento de Popups de Ação comuns ou de Cartas
+                    if event.key == pygame.K_p:
+                        print(f"↩️ {game.jogadores[jogador_atual_idx].nome} fechou o evento/passou a vez.")
+                        
+                        # Se a carta que ele acabou de ler mandou ele se mover (ex: Vá para o Início ou Vá para a Prisão),
+                        # a posição dele já mudou na lógica, então atualizamos os passos para o peão andar na tela.
+                        if popup_eh_carta and carta_atual_objeto:
+                            # Se a carta alterou a posição mas não deu passos de animação, podemos forçar o peão a ir
+                            pass
+                        
+                        popup_ativo      = False
+                        aguardando_popup = False
+                        popup_eh_carta   = False
+                        carta_atual_objeto = None
+                        anims[jogador_atual_idx].parar()
+                        
+                        # Passa o turno para o próximo player
+                        jogador_atual_idx = (jogador_atual_idx + 1) % n_jogadores_ativos
+                        print(f"🎲 Vez de: {game.jogadores[jogador_atual_idx].nome}. Pressione ESPAÇO.")
+
+                    # Caso 2: Compra de Propriedade
+                    elif event.key == pygame.K_c and popup_eh_propriedade:
+                        print(f"💰 {game.jogadores[jogador_atual_idx].nome} comprou {casa_atual.nome}.")
                         from src.core import transacoes
                         transacoes.comprar_propriedade(game.jogadores[jogador_atual_idx], casa_atual)
+                        
                         popup_ativo      = False
                         aguardando_popup = False
                         anims[jogador_atual_idx].parar()
                         jogador_atual_idx = (jogador_atual_idx + 1) % n_jogadores_ativos
+                        print(f"🎲 Vez de: {game.jogadores[jogador_atual_idx].nome}. Pressione ESPAÇO.")
 
-                    elif event.key == pygame.K_p:
-                        popup_ativo      = False
-                        aguardando_popup = False
-                        anims[jogador_atual_idx].parar()
-                        jogador_atual_idx = (jogador_atual_idx + 1) % n_jogadores_ativos
-
-                
+                # Se não tem popup ativo, aceita rolar o dado
                 elif event.key == pygame.K_SPACE:
                     if passos_restantes == 0 and not aguardando_popup:
-                        resultado        = game.dados.rolar()
-                        ultimo_dado_1    = resultado.dado1
-                        ultimo_dado_2    = resultado.dado2
+                        resultado = game.dados.rolar()
+                        ultimo_dado_1 = resultado.dado1
+                        ultimo_dado_2 = resultado.dado2
                         passos_restantes = resultado.total
-                        pos_antes_mover[jogador_atual_idx] = game.jogadores[jogador_atual_idx].posicao
+                        
+                        j = game.jogadores[jogador_atual_idx]
+                        pos_antiga = j.posicao
+                        
+                        # LOG VISUAL DO BÔNUS DE INÍCIO:
+                        # Usando a lógica do seu motor, se ao somar os passos ele ultrapassar a casa 40, ganha o bônus
+                        if pos_antiga + passos_restantes >= 40:
+                            print(f"🏪 {j.nome} vai passar pelo INÍCIO nesta jogada e receberá +$200!")
 
-        # Lógica de atualização de posições passo a passo
-        tempo_movimento += 1
-        if tempo_movimento > 4 and passos_restantes > 0:
-            tempo_movimento = 0
-            j = game.jogadores[jogador_atual_idx]
-            pos_old = j.posicao
-            j.posicao = (j.posicao + 1) % len(CASAS)
-            passos_restantes -= 1
+        # Lógica de movimentação frame por frame do peão
+        if passos_restantes > 0 and not aguardando_popup:
+            tempo_movimento += 1
+            if tempo_movimento > 6:
+                tempo_movimento = 0
+                j = game.jogadores[jogador_atual_idx]
+                pos_old = j.posicao
+                
+                # Avança 1 casa por vez para fazer a animação andar bonita
+                j.posicao = (j.posicao + 1) % 40
+                passos_restantes -= 1
 
-            direcao = _calcular_direcao(pos_old, j.posicao)
-            anims[jogador_atual_idx].iniciar_movimento(direcao)
+                # INTERCEPTAÇÃO DO BÔNUS DE INÍCIO: Se pisou exatamente na casa 0 (Início)
+                if j.posicao == 0:
+                    # Aplica a regra de negócio do seu transacoes.py ou adiciona direto no saldo
+                    j.saldo += 200
+                    print(f"💰 BÔNUS ATIVADO: {j.nome} cruzou o ponto de partida. +$200 adicionados ao saldo! Saldo atual: ${j.saldo}")
 
-            if passos_restantes == 0:
-                anims[jogador_atual_idx].parar()
-                casa = game.tabuleiro.get_casa(j.posicao)
+                direcao = _calcular_direcao(pos_old, j.posicao)
+                anims[jogador_atual_idx].iniciar_movimento(direcao)
 
-                popup_eh_propriedade = (casa.tipo in TIPOS_COMPRAVEIS and casa.esta_disponivel())
-                popup_ativo      = True
-                popup_titulo     = casa.nome
-                aguardando_popup = True
+                # Quando o peão termina de andar todos os passos rolandos no dado
+                if passos_restantes == 0:
+                    anims[jogador_atual_idx].parar()
+                    casa = game.tabuleiro.get_casa(j.posicao)
+                    print(f"📍 {j.nome} parou na casa: {casa.nome} ({casa.tipo})")
 
-                if casa.tipo == TipoCasa.PROPRIEDADE:
-                    dono = game.jogadores[casa.dono_id].nome if casa.dono_id is not None else "Disponível"
-                    popup_texto = (
-                        f"Preço:        ${casa.preco}\n"
-                        f"Aluguel base: ${casa.aluguel_base}\n"
-                        f"Hipoteca:     ${casa.valor_hipoteca}\n"
-                        f"Custo andar:  ${casa.preco_andar}\n"
-                        f"Dono: {dono}"
-                    )
-                elif casa.tipo == TipoCasa.SORTE:
-                    popup_texto = "Você caiu em Sorte!\nSaque uma carta."
-                elif casa.tipo == TipoCasa.AZAR:
-                    popup_texto = "Você caiu em Azar!\nSaque uma carta."
-                elif casa.tipo == TipoCasa.FERIAS:
-                    popup_texto = "Hora de descansar!\nVocê está de férias."
-                elif casa.tipo == TipoCasa.PRISAO:
-                    popup_texto = "Apenas visitando a prisão.\nNada acontece."
-                elif casa.tipo == TipoCasa.IR_PARA_PRISAO:
-                    popup_texto = "Vá direto para a prisão!\nNão passe pelo Início."
-                elif casa.tipo == TipoCasa.IMPOSTO:
-                    popup_texto = "Imposto de Renda!\nPague $200 ao banco."
-                elif casa.tipo == TipoCasa.INICIO:
-                    popup_texto = "Você passou pelo Início!\nReceba $200."
-                else:
-                    popup_texto = "Casa sem efeito especial."
+                    popup_eh_propriedade = (casa.tipo in TIPOS_COMPRAVEIS and casa.esta_disponivel())
+                    popup_eh_carta = False
+                    popup_ativo = True
+                    popup_titulo = casa.nome
+                    aguardando_popup = True
 
+# ─── LOGICA INTEGRADA PARA CASAS DE SORTE ───
+                    if casa.tipo == TipoCasa.SORTE:
+                        popup_eh_carta = True
+                        
+                        # Usa a função .sacar() do seu objeto Deck
+                        carta = baralho_sorte.sacar() 
+                        carta_atual_objeto = carta
+                        
+                        # Importamos o módulo de transações exigido pelo aplicador
+                        from src.core import transacoes 
+                        
+                        # Executa o processador oficial do seu cartas.py
+                        resultado_carta = cartas.aplicar_carta(
+                            carta=carta,
+                            jogador_atual=j,
+                            todos_jogadores=game.jogadores,
+                            tabuleiro=game.tabuleiro,
+                            transacoes_mod=transacoes
+                        )
+                        
+                        popup_titulo = "🍀 CARTA DE SORTE"
+                        popup_texto = f"Mensagem:\n{carta.descricao}"
+                        
+                        # SE A CARTA MANDOU O PEÃO SE MOVER (Ex: Avance até o Início / Avv. São João)
+                        if resultado_carta["moveu"] and resultado_carta["nova_posicao"] is not None:
+                            # Sincroniza a posição gráfica para o peão ser teleportado/movido na tela
+                            # Se a carta mandou ir para a prisão (casa 10), o resultado já cuida disso
+                            pass
+                            
+                        print(f"🃏 {j.nome} aplicou Sorte: {carta.descricao}")
+
+                    # ─── LOGICA INTEGRADA PARA CASAS DE AZAR ───
+                    elif casa.tipo == TipoCasa.AZAR:
+                        popup_eh_carta = True
+                        
+                        # Usa a função .sacar() do seu objeto Deck
+                        carta = baralho_azar.sacar()
+                        carta_atual_objeto = carta
+                        
+                        from src.core import transacoes
+                        
+                        # Executa o processador oficial do seu cartas.py
+                        resultado_carta = cartas.aplicar_carta(
+                            carta=carta,
+                            jogador_atual=j,
+                            todos_jogadores=game.jogadores,
+                            tabuleiro=game.tabuleiro,
+                            transacoes_mod=transacoes
+                        )
+                        
+                        popup_titulo = "💥 CARTA DE AZAR"
+                        popup_texto = f"Mensagem:\n{carta.descricao}"
+                        
+                        print(f"🃏 {j.nome} aplicou Azar: {carta.descricao}")
+
+                    # ─── OUTRAS CASAS DO TABULEIRO ───
+                    elif casa.tipo == TipoCasa.PROPRIEDADE:
+                        dono = game.jogadores[casa.dono_id].nome if casa.dono_id is not None else "Disponível"
+                        popup_texto = (
+                            f"Preço:        ${casa.preco}\n"
+                            f"Aluguel base: ${casa.aluguel_base}\n"
+                            f"Hipoteca:     ${casa.valor_hipoteca}\n"
+                            f"Custo andar:  ${casa.preco_andar}\n"
+                            f"Dono: {dono}"
+                        )
+                    elif casa.tipo == TipoCasa.INICIO:
+                        popup_texto = "Ponto de Partida Technopoly!\nVocê coletou os benefícios de passagem."
+                    elif casa.tipo == TipoCasa.PRISAO:
+                        popup_texto = "Visita simples à Prisão.\nVocê está apenas observando os detentos."
+                    elif casa.tipo == TipoCasa.IR_PARA_PRISAO:
+                        popup_texto = "Infração detectada!\nSeu peão foi enviado direto para a delegacia."
+                        # Aplica a lógica de prisão do seu jogador.py
+                        j.entrar_na_prisao()
+                    elif casa.tipo == TipoCasa.IMPOSTO:
+                        j.saldo -= 200
+                        popup_texto = "Imposto sobre Grandes Fortunas de Software!\nVocê pagou $200 ao banco."
+                    else:
+                        popup_texto = "Área Neutra.\nNenhum evento financeiro nesta casa."
+                    
+                    print(f"📢 Popup Ativo: {popup_titulo}. Aguardando confirmação...")
+
+        # Atualização das animações
         for idx, anim in enumerate(anims):
             p_id = getattr(game.jogadores[idx], 'personagem_id', idx + 1)
             anim.atualizar(dt, p_id)
