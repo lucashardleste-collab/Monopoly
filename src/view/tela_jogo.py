@@ -192,10 +192,30 @@ popup_ativo          = False
 popup_titulo         = ""
 popup_texto          = ""
 popup_eh_propriedade = False
+jogo_pausado = False
 
 TIPOS_COMPRAVEIS = {TipoCasa.PROPRIEDADE}
 OFFSETS          = [(0, 0), (18, 0), (0, 18), (18, 18)]
 
+# --- BOTÕES DO MENU DE PAUSA ---
+
+BTN_W = 280
+BTN_H = 70
+
+btn_continuar = pygame.Rect(
+    GAME_WIDTH // 2 - BTN_W // 2,
+    GAME_HEIGHT // 2 + 40,
+    BTN_W,
+    BTN_H
+)
+
+btn_sair = pygame.Rect(
+    GAME_WIDTH // 2 - BTN_W // 2,
+    GAME_HEIGHT // 2 + 130,
+    BTN_W,
+    BTN_H
+)
+ # ---------------------------------------------------------------------------
 def get_pos_jogador(idx: int) -> tuple[int, int]:
     pos = game.jogadores[idx].posicao % len(CASAS)
     x, y = CASAS[pos]
@@ -319,6 +339,47 @@ def desenhar_popup():
     surf_op = fonte_normal.render(opcoes, True, cor_borda_dinamica)
     window.blit(surf_op, (PX + 40, PY + PH - 55))
 
+# --- Função para desenhar o menu de pausa ---
+def desenhar_pause():
+    overlay = pygame.Surface((GAME_WIDTH, GAME_HEIGHT), pygame.SRCALPHA)
+    overlay.fill((0, 0, 0, 180))
+    window.blit(overlay, (0, 0))
+
+    titulo = fonte_titulo.render("JOGO PAUSADO", True, DOURADO)
+    window.blit(
+        titulo,
+        (
+            GAME_WIDTH // 2 - titulo.get_width() // 2,
+            GAME_HEIGHT // 2 - 120
+        )
+    )
+
+    mouse = pygame.mouse.get_pos()
+
+    cor_continuar = DOURADO if btn_continuar.collidepoint(mouse) else DOURADO_ESC
+    cor_sair = DOURADO if btn_sair.collidepoint(mouse) else DOURADO_ESC
+
+    pygame.draw.rect(window, cor_continuar, btn_continuar, border_radius=12)
+    pygame.draw.rect(window, cor_sair, btn_sair, border_radius=12)
+
+    txt = fonte_normal.render("Continuar", True, PRETO)
+    window.blit(
+        txt,
+        (
+            btn_continuar.centerx - txt.get_width() // 2,
+            btn_continuar.centery - txt.get_height() // 2
+        )
+    )
+
+    txt = fonte_normal.render("Fechar Jogo", True, PRETO)
+    window.blit(
+        txt,
+        (
+            btn_sair.centerx - txt.get_width() // 2,
+            btn_sair.centery - txt.get_height() // 2
+        )
+    )
+
 def draw():
     window.blit(tabuleiro_img, (0, 0))
 
@@ -354,6 +415,7 @@ def executar_jogo(lista_jogadores_config=None):
     global popup_ativo, popup_titulo, popup_texto, popup_eh_propriedade, popup_eh_carta, carta_atual_objeto
     global ultimo_dado_1, ultimo_dado_2, passos_restantes, tempo_movimento
     global jogador_atual_idx, aguardando_popup, game, anims, n_jogadores_ativos, SPRITES
+    global jogo_pausado
 
     if not SPRITES:
         print("📦 Carregando sprites de peões...")
@@ -389,7 +451,44 @@ def executar_jogo(lista_jogadores_config=None):
                 pygame.quit()
                 exit()
 
+            if jogo_pausado and event.type == pygame.MOUSEBUTTONDOWN:
+                if event.button == 1:  # botão esquerdo
+
+                    if btn_continuar.collidepoint(event.pos):
+                        jogo_pausado = False
+                        pygame.mixer.music.unpause()
+
+                    elif btn_sair.collidepoint(event.pos):
+                        pygame.quit()
+                        exit()
+
+                continue
+
             if event.type == pygame.KEYDOWN:
+
+                # PAUSE
+                if jogo_pausado:
+
+                    if event.key == pygame.K_ESCAPE:
+                        jogo_pausado = False
+                        pygame.mixer.music.unpause()
+
+                    elif event.key == pygame.K_RETURN:
+                        jogo_pausado = False
+                        pygame.mixer.music.unpause()
+
+                    elif event.key == pygame.K_q:
+                        pygame.quit()
+                        exit()
+
+                    continue
+
+                # ABRIR PAUSE
+                if event.key == pygame.K_ESCAPE:
+                    jogo_pausado = True
+                    pygame.mixer.music.pause()
+                    continue
+
                 if aguardando_popup:
                     casa_atual = game.tabuleiro.get_casa(game.jogadores[jogador_atual_idx].posicao)
                     
@@ -427,7 +526,7 @@ def executar_jogo(lista_jogadores_config=None):
 
                 # Se não tem popup ativo, aceita rolar o dado
                 elif event.key == pygame.K_SPACE:
-                    if passos_restantes == 0 and not aguardando_popup:
+                    if not jogo_pausado and passos_restantes == 0 and not aguardando_popup:
                         resultado = game.dados.rolar()
                         ultimo_dado_1 = resultado.dado1
                         ultimo_dado_2 = resultado.dado2
@@ -561,19 +660,23 @@ def executar_jogo(lista_jogadores_config=None):
             anim.atualizar(dt, p_id)
 
         draw()
+
+        if jogo_pausado:
+            desenhar_pause()
+
         pygame.display.update()
 
-if __name__ == "__main__":
-    # Garante que o jogo comece pelo Menu Principal, desencadeando as telas certas!
-    menu = TelaMenu()
-    print("🖥️ Inicializando a janela gráfica do Pygame...")
-    resultado = menu.rodar_menu()
-    
-    if resultado == "INICIAR":
-        print("👥 Abrindo a seleção de personagens...")
-        tela_selecao = TelaSelecao(menu.tela)
-        lista_jogadores = tela_selecao.rodar()
+    if __name__ == "__main__":
+        # Garante que o jogo comece pelo Menu Principal, desencadeando as telas certas!
+        menu = TelaMenu()
+        print("🖥️ Inicializando a janela gráfica do Pygame...")
+        resultado = menu.rodar_menu()
         
-        if lista_jogadores:
-            print("🎲 Iniciando o Tabuleiro com os jogadores configurados!")
-            executar_jogo(lista_jogadores)
+        if resultado == "INICIAR":
+            print("👥 Abrindo a seleção de personagens...")
+            tela_selecao = TelaSelecao(menu.tela)
+            lista_jogadores = tela_selecao.rodar()
+            
+            if lista_jogadores:
+                print("🎲 Iniciando o Tabuleiro com os jogadores configurados!")
+                executar_jogo(lista_jogadores)
